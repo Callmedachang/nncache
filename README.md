@@ -1,3 +1,3 @@
-# NNCache  [![GoDoc](https://camo.githubusercontent.com/bb11101fe07f15da3a338b1a4e5ca242771f20da/68747470733a2f2f676f646f632e6f72672f6769746875622e636f6d2f616c6c6567726f2f62696763616368653f7374617475732e737667)](https://godoc.org/github.com/allegro/bigcache) [![Go Report Card](https://camo.githubusercontent.com/290b4a6e0b89b632e6ca0183ae5f00f1b3adeab1/68747470733a2f2f676f7265706f7274636172642e636f6d2f62616467652f6769746875622e636f6d2f616c6c6567726f2f6269676361636865)](https://goreportcard.com/report/github.com/allegro/bigcache)
+# NNCache
 
 Fast, concurrent, evicting in-memory cache without impact on performance. 
