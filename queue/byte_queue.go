@@ -31,12 +31,6 @@ const (
 	minimumEmptyBlobSize = 32 + headerEntrySize
 )
 
-// Get reads entry from index
-func (q *BytesQueue) Get(index int) ([]byte, error) {
-	data, _, err := q.peek(index)
-	return data, err
-}
-
 type queueError struct {
 	message string
 }
@@ -46,6 +40,30 @@ var (
 	errInvalidIndex     = &queueError{"Index must be greater than zero. Invalid index."}
 	errIndexOutOfBounds = &queueError{"Index out of range"}
 )
+
+// Get reads entry from index
+func (q *BytesQueue) Get(index int) ([]byte, error) {
+	data, _, err := q.peek(index)
+	return data, err
+}
+
+// NewBytesQueue initialize new bytes queue.
+// Initial capacity is used in bytes array allocation
+// When verbose flag is set then information about memory allocation are printed
+func NewBytesQueue(initialCapacity int, maxCapacity int, verbose bool) *BytesQueue {
+	return &BytesQueue{
+		array:           make([]byte, initialCapacity),
+		capacity:        initialCapacity,
+		maxCapacity:     maxCapacity,
+		headerBuffer:    make([]byte, headerEntrySize),
+		tail:            leftMarginIndex,
+		head:            leftMarginIndex,
+		rightMargin:     leftMarginIndex,
+		verbose:         verbose,
+		initialCapacity: initialCapacity,
+	}
+}
+
 // Error returns error message
 func (e *queueError) Error() string {
 	return e.message
@@ -55,24 +73,6 @@ func (e *queueError) Error() string {
 func (q *BytesQueue) Peek() ([]byte, error) {
 	data, _, err := q.peek(q.head)
 	return data, err
-}
-
-func (q *BytesQueue) peek(index int) ([]byte, int, error) {
-
-	if q.count == 0 {
-		return nil, 0, errEmptyQueue
-	}
-
-	if index <= 0 {
-		return nil, 0, errInvalidIndex
-	}
-
-	if index+headerEntrySize >= len(q.array) {
-		return nil, 0, errIndexOutOfBounds
-	}
-
-	blockSize := int(binary.LittleEndian.Uint32(q.array[index : index+headerEntrySize]))
-	return q.array[index+headerEntrySize : index+headerEntrySize+blockSize], blockSize, nil
 }
 
 // Pop reads the oldest entry from queue and moves head pointer to the next one
@@ -117,6 +117,24 @@ func (q *BytesQueue) Push(data []byte) (int, error) {
 	return index, nil
 }
 
+func (q *BytesQueue) peek(index int) ([]byte, int, error) {
+
+	if q.count == 0 {
+		return nil, 0, errEmptyQueue
+	}
+
+	if index <= 0 {
+		return nil, 0, errInvalidIndex
+	}
+
+	if index+headerEntrySize >= len(q.array) {
+		return nil, 0, errIndexOutOfBounds
+	}
+
+	blockSize := int(binary.LittleEndian.Uint32(q.array[index : index+headerEntrySize]))
+	return q.array[index+headerEntrySize : index+headerEntrySize+blockSize], blockSize, nil
+}
+
 func (q *BytesQueue) allocateAdditionalMemory(minimum int) {
 	start := time.Now()
 	if q.capacity < minimum {
@@ -158,6 +176,7 @@ func (q *BytesQueue) push(data []byte, len int) {
 
 	q.count++
 }
+
 func (q *BytesQueue) copy(data []byte, len int) {
 	q.tail += copy(q.array[q.tail:], data[:len])
 }
@@ -174,21 +193,4 @@ func (q *BytesQueue) availableSpaceBeforeHead() int {
 		return q.head - leftMarginIndex - minimumEmptyBlobSize
 	}
 	return q.head - q.tail - minimumEmptyBlobSize
-}
-
-// NewBytesQueue initialize new bytes queue.
-// Initial capacity is used in bytes array allocation
-// When verbose flag is set then information about memory allocation are printed
-func NewBytesQueue(initialCapacity int, maxCapacity int, verbose bool) *BytesQueue {
-	return &BytesQueue{
-		array:           make([]byte, initialCapacity),
-		capacity:        initialCapacity,
-		maxCapacity:     maxCapacity,
-		headerBuffer:    make([]byte, headerEntrySize),
-		tail:            leftMarginIndex,
-		head:            leftMarginIndex,
-		rightMargin:     leftMarginIndex,
-		verbose:         verbose,
-		initialCapacity: initialCapacity,
-	}
 }
