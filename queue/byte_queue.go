@@ -194,3 +194,25 @@ func (q *BytesQueue) availableSpaceBeforeHead() int {
 	}
 	return q.head - q.tail - minimumEmptyBlobSize
 }
+
+// CheckGet checks if an entry can be read from index
+func (q *BytesQueue) CheckGet(index int) error {
+	return q.peekCheckErr(index)
+}
+
+// peekCheckErr is identical to peek, but does not actually return any data
+func (q *BytesQueue) peekCheckErr(index int) error {
+
+	if q.count == 0 {
+		return errEmptyQueue
+	}
+
+	if index <= 0 {
+		return errInvalidIndex
+	}
+
+	if index+headerEntrySize >= len(q.array) {
+		return errIndexOutOfBounds
+	}
+	return nil
+}

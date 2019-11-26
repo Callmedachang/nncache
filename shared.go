@@ -11,10 +11,10 @@ import (
 type onRemoveCallback func(wrappedEntry []byte, reason RemoveReason)
 
 const (
-	timestampSizeInBytes              = 8                                                       // Number of bytes used for timestamp
-	hashSizeInBytes                   = 8                                                       // Number of bytes used for hash
-	keySizeInBytes                    = 2                                                       // Number of bytes used for size of entry key
-	headersSizeInBytes                = timestampSizeInBytes + hashSizeInBytes + keySizeInBytes // Number of bytes used for all headers
+	timestampSizeInBytes = 8                                                       // Number of bytes used for timestamp
+	hashSizeInBytes      = 8                                                       // Number of bytes used for hash
+	keySizeInBytes       = 2                                                       // Number of bytes used for size of entry key
+	headersSizeInBytes   = timestampSizeInBytes + hashSizeInBytes + keySizeInBytes // Number of bytes used for all headers
 )
 
 type cacheShard struct {
@@ -158,4 +158,62 @@ func initNewShard(config Config, callback onRemoveCallback, clock clock) *cacheS
 		lifeWindow:   uint64(config.LifeWindow.Seconds()),
 		statsEnabled: config.StatsEnabled,
 	}
+}
+
+func (s *cacheShard) del(hashedKey uint64) error {
+	// Optimistic pre-check using only readlock
+	s.lock.RLock()
+	itemIndex := s.hashmap[hashedKey]
+
+	if itemIndex == 0 {
+		s.lock.RUnlock()
+		s.delMiss()
+		return ErrEntryNotFound
+	}
+
+	if err := s.entries.CheckGet(int(itemIndex)); err != nil {
+		s.lock.RUnlock()
+		s.delMiss()
+		return err
+	}
+	s.lock.RUnlock()
+
+	s.lock.Lock()
+	{
+		// After obtaining the writelock, we need to read the same again,
+		// since the data delivered earlier may be stale now
+		itemIndex = s.hashmap[hashedKey]
+
+		if itemIndex == 0 {
+			s.lock.Unlock()
+			s.delMiss()
+			return ErrEntryNotFound
+		}
+
+		wrappedEntry, err := s.entries.Get(int(itemIndex))
+		if err != nil {
+			s.lock.Unlock()
+			s.delMiss()
+			return err
+		}
+
+		delete(s.hashmap, hashedKey)
+		//s.onRemove(wrappedEntry, Deleted)
+		if s.statsEnabled {
+			delete(s.hashmapStats, hashedKey)
+		}
+		resetKeyFromEntry(wrappedEntry)
+	}
+	s.lock.Unlock()
+
+	s.delHit()
+	return nil
+}
+
+func (s *cacheShard) delMiss() {
+	atomic.AddInt64(&s.stats.DelMisses, 1)
+}
+
+func (s *cacheShard) delHit() {
+	atomic.AddInt64(&s.stats.DelHits, 1)
 }

@@ -22,3 +22,14 @@ func TestNewNNCache2(t *testing.T) {
 	assert.Equal(t, string(res), "")
 	assert.Equal(t, err.Error(), "Entry not found")
 }
+
+func TestNewNNCache3(t *testing.T) {
+	cache, _ := NewNNCache(DefaultConfig(10 * time.Minute))
+	err := cache.Set("luwenchao", []byte("zhendishuai"))
+	assert.Equal(t, err, nil)
+	err = cache.Delete("luwenchao")
+	assert.Equal(t, err, nil)
+	res, err := cache.Get("luwenchao")
+	assert.Equal(t, string(res), "")
+	assert.Equal(t, err.Error(), "Entry not found")
+}

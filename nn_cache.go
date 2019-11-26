@@ -82,7 +82,9 @@ func (c *NNCache) Get(key string) ([]byte, error) {
 
 // Delete removes the key
 func (c *NNCache) Delete(key string) error {
-	return nil
+	hashedKey := c.hash.Sum64(key)
+	shard := c.getShard(hashedKey)
+	return shard.del(hashedKey)
 }
 
 // Reset empties all cache shards
